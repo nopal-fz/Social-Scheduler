@@ -24,6 +24,8 @@ Files: `app/`, `lib/env.ts`, `.env.example`, `README.md`, `AGENTS.md`, `PRD.md`.
 
 Commands: `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`, `pnpm dev`.
 
+Checks: `typecheck`, `lint`, `test` (2 test), `build`, dan `dev` HTTP 200 lolos.
+
 Blocked: none.
 
 Jangan simpan token, password, atau isi `.env` di file ini.
