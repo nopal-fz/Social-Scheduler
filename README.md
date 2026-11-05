@@ -2,7 +2,8 @@
 
 Personal social scheduler untuk Threads, Instagram, dan TikTok. Self-hosted, satu owner.
 
-Status: M0.3 — database, worker, dan auth satu owner. Belum ada kalender atau integrasi platform.
+Status: M0.4 — database, worker, auth satu owner, dan shell kalender minggu dengan data contoh.
+Belum ada integrasi platform.
 
 ## Commands
 
@@ -46,6 +47,12 @@ pnpm db:seed
 untuk mengganti password. `SESSION_SECRET` minimal 32 karakter dan wajib diganti di mesin sendiri.
 
 Login di `/login`. Session disimpan di cookie `httpOnly` selama 7 hari.
+
+## Kalender
+
+`/` menampilkan kalender minggu. Data post masih contoh dari `lib/calendar/sample-data.ts`;
+minggu lain kosong. Navigasi minggu memakai `?week=YYYY-MM-DD`, pilih hari mobile memakai `?day=0..6`.
+Filter akun, drawer, dan drag belum tersedia.
 
 ## Worker
 

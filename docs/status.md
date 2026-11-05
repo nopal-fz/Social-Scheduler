@@ -1,6 +1,6 @@
 # Status
 
-Milestone: M0.3 selesai. Berikutnya port layar kalender minggu ke Next.js.
+Milestone: M0.4 — shell kalender minggu selesai dengan data contoh. Berikutnya query DB dan interaksi kalender.
 
 ## Done
 
@@ -20,12 +20,22 @@ Milestone: M0.3 selesai. Berikutnya port layar kalender minggu ke Next.js.
   - Password salah menampilkan pesan generik; percobaan ke-6 kena rate limit.
   - `pnpm typecheck`, `pnpm lint`, `pnpm test` (15 test), `pnpm build` lolos.
   - Screenshot login 1440/1024/768/390: tanpa overflow, font termuat, fokus keyboard terlihat, console bersih.
+- M0.4: shell kalender minggu di `/`, hasil port `design/calendar-week.html`.
+  - Server Component; week start, tanggal, dan posisi blok dihitung di server dengan timezone tampilan `Asia/Jakarta`.
+  - Navigasi minggu lewat `?week=YYYY-MM-DD`; pilih hari mobile lewat `?day=0..6`. Tombol "Hari ini" kembali ke minggu berjalan.
+  - Grid 7 hari, rail akun, chip akun tablet, agenda mobile, legend status, now line, dan status reconnect.
+  - Data masih contoh dari `lib/calendar/sample-data.ts`; minggu lain tampil kosong.
+  - Belum ada filter akun, drawer, drag, atau tombol post baru.
+- Verifikasi M0.4 (`pnpm build` + `pnpm start`):
+  - Screenshot 1440/1024/768/390: tanpa overflow, header hari sejajar dengan kolom, font termuat, console bersih.
+  - 21 blok tidak keluar dari kolom; scroll awal mengikuti jam sekarang; navigasi minggu dan hari mobile bekerja.
+  - `pnpm typecheck`, `pnpm lint`, `pnpm test` (25 test), `pnpm build` lolos.
 
-## Next: M0.3b / M0.4
+## Next: M0.5 / M1
 
-1. Port layar kalender minggu dari `design/calendar-week.html` ke Next.js.
-2. Satu screen per run, pakai `docs/design.md`; jangan mengundi style baru.
-3. Render data dari DB, bukan dummy, setelah API/query dasar ada.
+1. Ganti data contoh dengan query `posts` + `post_targets` dan seed post uji.
+2. Interaksi kalender: filter akun, drawer detail/composer, drag dengan jalur keyboard, tombol post baru.
+3. Setelah itu masuk M1: Threads end-to-end (teks dulu).
 
 ## Decisions
 
@@ -33,6 +43,8 @@ Milestone: M0.3 selesai. Berikutnya port layar kalender minggu ke Next.js.
 - Auth memakai tabel `users`, scrypt, dan cookie bertanda tangan. Tanpa library auth baru.
 - Rate limit in-memory per proses; cukup untuk satu instance. Pindah ke Postgres bila app dijalankan lebih dari satu instance.
 - CSRF mengandalkan origin check bawaan Server Actions Next.js; tidak ada route handler mutation.
+- Kalender memakai query param untuk minggu/hari, bukan state client, supaya tetap server-rendered.
+- Sampel kalender statis sampai query post nyata ada; minggu lain sengaja kosong.
 - Postgres development lewat Docker Compose di port **5433** karena 5432 dipakai Postgres lokal.
 - Queue memakai pg-boss di database yang sama; tanpa Redis.
 - Waktu disimpan UTC; tampilan `Asia/Jakarta` nanti.
@@ -41,6 +53,7 @@ Milestone: M0.3 selesai. Berikutnya port layar kalender minggu ke Next.js.
 ## Files
 
 - Auth: `lib/auth/`, `app/login/`, `app/actions.ts`, `proxy.ts`.
+- Kalender: `app/page.tsx`, `app/calendar-view.tsx`, `app/calendar.css`, `app/scroll-to-now.tsx`, `lib/calendar/`.
 - DB: `docker-compose.yml`, `drizzle.config.ts`, `drizzle/`, `lib/db/`.
 - Worker: `worker/index.ts`, `worker/ping.ts`.
 - Seed: `scripts/seed-owner.ts`.
@@ -68,6 +81,7 @@ pnpm dev
 - Jangan mengganti style di `docs/design.md`.
 - Jangan pakai port 5432 untuk container; itu Postgres lokal user.
 - Jangan menambah registrasi atau multi-user flow.
+- Jangan menganggap blok kalender sudah bisa diklik atau di-drag; interaksi itu belum dibuat.
 
 ## Handoff
 
