@@ -2,7 +2,7 @@
 
 Personal social scheduler untuk Threads, Instagram, dan TikTok. Self-hosted, satu owner.
 
-Status: M0.2 — database dan worker. Belum ada auth, UI kalender, atau integrasi platform.
+Status: M0.3 — database, worker, dan auth satu owner. Belum ada kalender atau integrasi platform.
 
 ## Commands
 
@@ -15,6 +15,7 @@ pnpm typecheck
 pnpm test
 pnpm db:generate
 pnpm db:migrate
+pnpm db:seed
 pnpm worker
 pnpm worker:ping
 ```
@@ -33,6 +34,19 @@ pnpm db:migrate
 Schema ada di `lib/db/schema.ts`. Setelah mengubah schema, jalankan `pnpm db:generate` lalu
 `pnpm db:migrate`; file migration di `drizzle/` ikut di-commit.
 
+## Auth
+
+Buat owner dari nilai di `.env.local`:
+
+```bash
+pnpm db:seed
+```
+
+`OWNER_EMAIL` dan `OWNER_PASSWORD` hanya dipakai script seed, bukan oleh app. Jalankan seed lagi
+untuk mengganti password. `SESSION_SECRET` minimal 32 karakter dan wajib diganti di mesin sendiri.
+
+Login di `/login`. Session disimpan di cookie `httpOnly` selama 7 hari.
+
 ## Worker
 
 Worker adalah proses Node terpisah dan memakai pg-boss di Postgres yang sama (tanpa Redis).
@@ -46,8 +60,9 @@ pnpm worker:ping   # enqueue satu job heartbeat
 
 ```text
 app/      Next.js App Router
-lib/      kode aplikasi, env, dan database
+lib/      kode aplikasi, env, auth, dan database
 worker/   proses worker
+scripts/  script operasional (seed owner)
 drizzle/  migration SQL
 docs/     keputusan dan catatan
 design/   prototipe statis kalender (referensi visual)

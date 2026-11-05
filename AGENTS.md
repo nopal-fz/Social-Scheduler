@@ -42,6 +42,7 @@ pnpm lint
 pnpm typecheck
 pnpm db:generate
 pnpm db:migrate
+pnpm db:seed
 pnpm worker
 pnpm worker:ping
 ```
