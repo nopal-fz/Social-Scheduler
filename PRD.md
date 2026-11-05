@@ -186,6 +186,6 @@ Urutan sengaja Threads dulu: tidak butuh media storage untuk post teks, jadi cep
 ## 13. Catatan run UI 1 (2026-11-05)
 
 - Style terkunci: `docs/design.md` (Frost & cobalt, Host Grotesk + JetBrains Mono).
-- Layar kalender minggu dibangun sebagai prototipe statis `design/calendar-week.html` (+ `calendar.css`, `calendar.js`, dummy data) **sebelum** scaffold Next.js. M0 app/worker/db belum dimulai.
+- Layar kalender minggu dibangun sebagai prototipe statis `design/calendar-week.html` (+ `calendar.css`, `calendar.js`, dummy data) **sebelum** scaffold Next.js. M0.1 scaffold Next.js sudah selesai; DB/worker/auth belum.
 - Cek UI: skill `design-taste-frontend` 2.5 tidak punya `inspect.mjs --app`; `check.mjs` adalah checker halaman marketing dan crash di layar app. Dipakai `shoot.mjs` 4 lebar, `perf.mjs`, dan audit CDP. Detail di `docs/design.md`.
 - Ditunda: drawer detail, aksi `Post baru`/`Sambungkan`/retry (masih dummy), same-slot stacking.
