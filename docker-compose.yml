@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: jadwalin-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: jadwalin
+      POSTGRES_PASSWORD: jadwalin
+      POSTGRES_DB: jadwalin
+    # Port 5432 dipakai Postgres lokal di mesin ini, jadi development memakai 5433.
+    ports:
+      - "5433:5432"
+    volumes:
+      - jadwalin-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jadwalin -d jadwalin"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  jadwalin-postgres-data:

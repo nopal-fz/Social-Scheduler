@@ -1,54 +1,65 @@
 # Status
 
-Milestone: M0.1 selesai. Berikutnya M0.2 — database + worker.
+Milestone: M0.2 selesai. Berikutnya M0.3 — auth satu owner.
 
 ## Done
 
-- Next.js 16.4.5 App Router, TypeScript strict, ESLint, Vitest.
-- Zod env minimal (`lib/env.ts`) + `.env.example`; `.env*` diabaikan.
-- pnpm 12.16.1, Node 24, Docker 27, psql 17.
-- Git aktif dan sinkron dengan `origin/main`.
-- `pnpm typecheck`, `pnpm lint`, `pnpm test` (2 test), `pnpm build`, dan `pnpm dev` HTTP 200 lolos.
-- `docs/status.md` menjadi satu-satunya file status bergulir.
-- `AGENTS.md` sudah memuat command aktual dan aturan Next 16 dari `next dev`.
-- Style desain tetap terkunci di `docs/design.md`.
+- M0.1: Next.js 16.4.5 App Router, TypeScript strict, ESLint, Vitest, Zod env.
+- `docker-compose.yml`: Postgres 17, volume persisten `jadwalin-postgres-data`, healthcheck, port host **5433**.
+  Port 5432 sudah dipakai Postgres lokal mesin dev, jadi container memakai 5433 dan service lokal tidak disentuh.
+- Drizzle: `drizzle.config.ts`, `lib/db/schema.ts`, `lib/db/client.ts` (pool di-cache di `globalThis` saat development).
+- Tabel: `users`, `social_accounts`, `posts`, `post_targets`. UUID id, `timestamptz`, status `text` sesuai PRD.
+- Migration `drizzle/0000_gigantic_multiple_man.sql` di-commit dan sudah diterapkan ke database dev.
+- `lib/env.ts` memakai `getEnv()` lazy; `DATABASE_URL` required. Test tidak bergantung pada `.env`.
+- Worker `worker/index.ts` (pg-boss, queue `heartbeat`) + `worker/ping.ts` untuk enqueue sekali.
+- Script: `db:generate`, `db:migrate`, `worker`, `worker:ping`.
+- Verifikasi lolos: container healthy, `pnpm db:migrate`, satu heartbeat di-enqueue dan dikonsumsi sekali,
+  `pnpm typecheck`, `pnpm lint`, `pnpm test` (3 test), `pnpm build`.
 
-## Next: M0.2
+## Next: M0.3
 
-1. Buat `docker-compose.yml` untuk Postgres 17: volume persisten, healthcheck, port development.
-2. Tambah `DATABASE_URL` ke `.env.example` (placeholder saja).
-3. Tambah Drizzle (`drizzle-orm`, `drizzle-kit`, `pg`), `drizzle.config.ts`, `lib/db/schema.ts`, dan `lib/db/client.ts`.
-4. Schema minimal: `users`, `social_accounts`, `posts`, `post_targets`. Tabel media/komen/metrics menyusul.
-5. Tambah script `db:generate`, `db:migrate`, dan `worker`.
-6. Buat `worker/index.ts` sebagai proses terpisah dengan pg-boss dan satu job dummy yang idempotent.
-7. Verifikasi: `docker compose up -d`, migrasi, job dummy jalan, `typecheck`, `lint`, `test`, `build`.
-8. Update status, commit, push.
+1. Auth satu owner (session cookie) tanpa registrasi; seed user lewat script/manual.
+2. Rate limit endpoint login dan CSRF untuk mutation.
+3. Setelah auth stabil, port layar kalender dari `design/calendar-week.html` ke Next.js (satu screen per run, ikut `docs/design.md`).
 
 ## Decisions
 
-- App pribadi single-owner; auth satu user baru di M0.3. Tidak ada registrasi.
-- Database development memakai Docker Compose.
-- Queue memakai pg-boss; jangan tambah Redis.
+- App pribadi single-owner; tidak ada registrasi.
+- Postgres development lewat Docker Compose di port **5433** karena 5432 dipakai Postgres lokal.
+- Kredensial Docker Compose hanya untuk development; `.env.local` tidak di-commit.
+- Queue memakai pg-boss di database yang sama; tanpa Redis. pg-boss membuat schema sendiri.
+- Job heartbeat no-op sehingga aman dijalankan ulang; idempotency publish nyata diuji di M1.
+- Waktu disimpan UTC; tampilan `Asia/Jakarta` nanti.
 - M0.2 tidak menyentuh auth, UI kalender, atau platform.
-- Waktu disimpan UTC; tampilan tetap `Asia/Jakarta` nanti.
 
 ## Files
 
-- Sudah ada: `app/`, `lib/env.ts`, `.env.example`, `README.md`, `docs/status.md`.
-- Akan ditambah: `docker-compose.yml`, `drizzle.config.ts`, `lib/db/`, `worker/`.
+- DB: `docker-compose.yml`, `drizzle.config.ts`, `drizzle/`, `lib/db/schema.ts`, `lib/db/client.ts`.
+- Worker: `worker/index.ts`, `worker/ping.ts`.
+- Env: `lib/env.ts`, `lib/env.test.ts`, `.env.example`.
 
 ## Commands
 
-Sekarang: `pnpm dev`, `pnpm build`, `pnpm start`, `pnpm lint`, `pnpm typecheck`, `pnpm test`.
+`pnpm dev`, `pnpm build`, `pnpm start`, `pnpm lint`, `pnpm typecheck`, `pnpm test`,
+`pnpm db:generate`, `pnpm db:migrate`, `pnpm worker`, `pnpm worker:ping`.
 
-M0.2: `pnpm db:generate`, `pnpm db:migrate`, `pnpm worker`.
+Urutan development:
+
+```bash
+cp .env.example .env.local
+docker compose up -d
+pnpm db:migrate
+pnpm worker        # terminal terpisah
+pnpm worker:ping   # enqueue satu heartbeat
+```
 
 ## Do not
 
-- Jangan port layar kalender, membuat auth, atau integrasi platform di M0.2.
 - Jangan commit `.env`, token, atau password.
 - Jangan force push.
 - Jangan mengganti style di `docs/design.md`.
+- Jangan pakai port 5432 untuk container; itu Postgres lokal user.
+- Jangan ubah `app/page.tsx` jadi layar kalender sebelum auth M0.3.
 
 ## Handoff
 

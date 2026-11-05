@@ -40,9 +40,11 @@ pnpm start
 pnpm test
 pnpm lint
 pnpm typecheck
+pnpm db:generate
+pnpm db:migrate
+pnpm worker
+pnpm worker:ping
 ```
-
-`pnpm worker` dan `pnpm db:migrate` ditambahkan di M0.2.
 
 ## Aturan kerja
 
