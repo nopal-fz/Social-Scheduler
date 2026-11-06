@@ -127,4 +127,13 @@ describe("build calendar href", () => {
     expect(buildCalendarHref({ accounts: "" })).toBe("/?accounts=");
     expect(buildCalendarHref({ accounts: null })).toBe("/");
   });
+
+  it("adds the composer and saved flags", () => {
+    expect(buildCalendarHref({ week: "2026-11-02", compose: true })).toBe(
+      "/?week=2026-11-02&compose=1",
+    );
+    expect(buildCalendarHref({ week: "2026-11-02", day: 3, saved: true })).toBe(
+      "/?week=2026-11-02&day=3&saved=1",
+    );
+  });
 });

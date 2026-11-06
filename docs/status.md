@@ -1,6 +1,6 @@
 # Status
 
-Milestone: M0.5 interaksi — filter akun selesai. Berikutnya composer "Post baru".
+Milestone: M0.5 interaksi — filter akun dan composer "Post baru" selesai. Berikutnya drawer detail.
 
 ## Done
 
@@ -55,11 +55,26 @@ Milestone: M0.5 interaksi — filter akun selesai. Berikutnya composer "Post bar
     - Matikan semua: ringkasan "Semua akun disembunyikan." + aksi "Tampilkan semua akun", legend hilang, agenda mobile memesan yang sama, klik aksi mengembalikan 21 blok.
     - Fokus keyboard pada checkbox: ring 2px accent pada baris label; `accent-color` pada checkbox terverifikasi.
     - `pnpm typecheck`, `pnpm lint`, `pnpm test` (43 test), `pnpm build` lolos.
+- M0.5 interaksi: composer "Post baru" menyimpan `posts` + `post_targets`.
+  - Drawer dibuka dari tombol "Post baru" lewat URL `?compose=1`, ditutup lewat tombol close/Batal/Esc. `onClose` mengganti URL ke `closeHref` (tanpa `compose`), jadi state buka-tutup tetap server-rendered seperti `week`/`day`/`accounts`. Setelah simpan, redirect membawa `saved=1` untuk toast "Terjadwal".
+  - Hanya akun **Threads** yang muncul dan bisa dipilih; caption teks saja. Media upload belum ada, jadi Instagram/TikTok belum bisa dijadwalkan dari composer.
+  - Field: caption (counter `x/500`), checkbox akun (pra-terpilih dari filter akun aktif), tanggal, dan jam (`step=900`, 15 menit). Default tanggal = hari yang dipilih di kalender; default jam = kuartal jam berikutnya kalau hari ini, selain itu `09:00`.
+  - Validasi di `lib/composer/schema.ts` (Zod untuk bentuk input, sisanya aturan murni): caption wajib dan ≤ `CAPTION_LIMIT`, minimal satu akun milik user, tanggal/jam valid, waktu harus setelah sekarang. `CAPTION_LIMIT = 500` masih `TODO(verify)` sampai `docs/threads.md` ditulis di M1.
+  - Jam Jakarta dikonversi ke UTC lewat `jakartaToUtc`; yang disimpan UTC, yang ditampilkan `Asia/Jakarta`. Setelah simpan, kalender pindah ke minggu dan hari post itu, sambil membawa `accounts`.
+  - Insert `posts` + `post_targets` (`content_type = 'text'`) dalam satu transaksi. Belum ada job pg-boss; ditandai komentar `shortcut:` di `createPost` dan disambungkan di M1 saat handler publish ada.
+  - Drawer memakai `<dialog>` native + `showModal()` (Esc, focus trap, `::backdrop` gratis). Field dikendalikan state karena React 19 mereset form tak-terkontrol setelah server action, sehingga isian hilang saat validasi gagal. Submit lewat `onSubmit` → `startTransition(() => formAction(data))` untuk alasan yang sama.
+  - Verifikasi sesi ini (`pnpm build` + `pnpm start`, sesi login owner, script CDP temp di folder temp, tidak di-commit):
+    - Buka dari grid: dialog modal, `compose=1` di URL, 1 akun Threads pra-terpilih, tanggal hari ini, jam kuartal berikutnya, fokus awal di caption, `aria-labelledby` benar, counter `0/500`.
+    - Validasi waktu lampau / caption kosong / tanpa akun: pesan `role="alert"` sesuai, drawer tetap terbuka, caption dan jam bertahan.
+    - Simpan: 1 baris `posts` + 1 baris `post_targets`, `scheduled_at` tersimpan benar (22:30 Jakarta), dialog tertutup, `saved=1`, toast "Terjadwal" terlihat, blok muncul di grid, ringkasan naik jadi 22.
+    - Esc menutup drawer dan menghapus `compose`; mobile 390 drawer selebar layar tanpa overflow; fokus keyboard Tab mendarat di caption dengan ring 2px accent; console bersih.
+    - Data uji dihapus setelah verifikasi (21 post tersisa).
+    - `pnpm typecheck`, `pnpm lint`, `pnpm test` (54 test), `pnpm build` lolos.
 
 ## Next: interaksi kalender / M1
 
-1. Slice berikutnya: composer "Post baru" + simpan `posts`/`post_targets`. Setelah itu drawer detail + retry, lalu drag + jalur keyboard.
-2. Interaksi kalender lain (drawer, drag, tombol post baru) tetap slice terpisah.
+1. Slice berikutnya: drawer detail post (baca caption, akun, waktu, status) + retry untuk post gagal. Retry baru bisa diuji setelah publisher M1 ada; kalau belum, tampilkan tombolnya nonaktif atau tunda slice retry.
+2. Setelah itu drag + jalur keyboard untuk memindah jadwal. Tombol retry dan drag tetap slice terpisah, bukan digabung ke composer.
 3. Setelah itu masuk M1: Threads end-to-end (teks dulu). Tulis `docs/threads.md` dan selesaikan item `[VERIFY]` sebelum integrasi.
 
 ## Decisions
@@ -76,6 +91,11 @@ Milestone: M0.5 interaksi — filter akun selesai. Berikutnya composer "Post bar
 - Postgres development lewat Docker Compose di port **5433** karena 5432 dipakai Postgres lokal.
 - Queue memakai pg-boss di database yang sama; tanpa Redis.
 - Filter akun memakai `?accounts=<id>,<id>`; tanpa param = semua akun, param kosong = tidak ada akun, id asing dibuang. Hitungan per akun tetap total (post multi-target dihitung di setiap akunya); summary/legend/hitungan hari memakai post yang terlihat; post tanpa target tersembunyi saat filter eksplisit.
+- Composer dibuka lewat `?compose=1` dan hasil simpan lewat `?saved=1`, bukan state client, supaya pola URL tetap sama dengan navigasi kalender.
+- Composer sementara hanya untuk akun Threads dan konten teks. Instagram/TikTok menunggu media upload (M2/M3); batas caption tunggal 500 (`TODO(verify)`), difinalkan di `docs/threads.md` saat M1.
+- Simpan post belum membuat job publish; `createPost` hanya menulis DB dan menandai titik sambung pg-boss dengan komentar `shortcut:`.
+- Form composer dikendalikan state dan disubmit manual (`onSubmit` + `startTransition`) karena React 19 mereset form tak-terkontrol setelah server action.
+- Drawer memakai `<dialog>` native (`showModal`) untuk Esc, focus containment, dan backdrop tanpa JavaScript tambahan.
 - Waktu disimpan UTC; tampilan `Asia/Jakarta`.
 - Style tetap terkunci di `docs/design.md`.
 
@@ -84,6 +104,7 @@ Milestone: M0.5 interaksi — filter akun selesai. Berikutnya composer "Post bar
 - Auth: `lib/auth/`, `app/login/`, `app/actions.ts`, `proxy.ts`.
 - Kalender: `app/page.tsx`, `app/calendar-view.tsx`, `app/calendar.css`, `app/scroll-to-now.tsx`, `lib/calendar/`.
 - Filter akun: `lib/calendar/filter.ts` + `filter.test.ts`; komponen klien toggle di `app/account-filter.tsx`; `app/platform-mark.tsx` (mark platform bersama).
+- Composer: `app/composer.tsx`, `app/actions.ts` (`createPost`), `lib/composer/schema.ts` + `schema.test.ts`, style drawer/toast/primary button di `app/calendar.css`.
 - Query + status: `lib/calendar/posts.ts`, `lib/calendar/status.ts`, `lib/calendar/types.ts`.
 - DB: `docker-compose.yml`, `drizzle.config.ts`, `drizzle/`, `lib/db/`.
 - Worker: `worker/index.ts`, `worker/ping.ts`.

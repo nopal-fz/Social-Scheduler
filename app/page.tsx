@@ -67,6 +67,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       accountsParam={accountsParam}
       countsByAccount={Object.fromEntries(countPostsByAccount(posts))}
       selectedDay={requestedDay ?? todayIndex ?? 0}
+      compose={query.compose === "1"}
+      saved={query.saved === "1"}
     />
   );
 }

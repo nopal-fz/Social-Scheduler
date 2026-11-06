@@ -87,9 +87,17 @@ export type CalendarHrefOptions = {
   week?: string | null;
   day?: number | null;
   accounts?: string | null;
+  compose?: boolean;
+  saved?: boolean;
 };
 
-export function buildCalendarHref({ week, day, accounts }: CalendarHrefOptions): string {
+export function buildCalendarHref({
+  week,
+  day,
+  accounts,
+  compose,
+  saved,
+}: CalendarHrefOptions): string {
   const parts: string[] = [];
   if (week) {
     parts.push(`week=${week}`);
@@ -101,6 +109,12 @@ export function buildCalendarHref({ week, day, accounts }: CalendarHrefOptions):
   // berbeda dari "semua dipilih" (tanpa param).
   if (accounts !== null && accounts !== undefined) {
     parts.push(`accounts=${accounts}`);
+  }
+  if (compose) {
+    parts.push("compose=1");
+  }
+  if (saved) {
+    parts.push("saved=1");
   }
   return parts.length > 0 ? `/?${parts.join("&")}` : "/";
 }

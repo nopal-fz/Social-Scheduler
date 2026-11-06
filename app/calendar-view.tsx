@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { buildCalendarHref } from "@/lib/calendar/filter";
+import { nextQuarterHour } from "@/lib/composer/schema";
 import {
   DAYS,
   addDays,
@@ -21,6 +22,7 @@ import type {
 } from "@/lib/calendar/types";
 import { ChipFilter, RailFilterRows } from "./account-filter";
 import { logout } from "./actions";
+import { Composer } from "./composer";
 import { PlatformMark } from "./platform-mark";
 import { GridScroll } from "./scroll-to-now";
 
@@ -37,6 +39,8 @@ type CalendarViewProps = {
   accountsParam: string | null;
   countsByAccount: Record<string, number>;
   selectedDay: number;
+  compose: boolean;
+  saved: boolean;
 };
 
 function initials(email: string): string {
@@ -155,6 +159,8 @@ export function CalendarView({
   accountsParam,
   countsByAccount,
   selectedDay,
+  compose,
+  saved,
 }: CalendarViewProps) {
   const accountsById = new Map(accounts.map((account) => [account.id, account]));
   const reconnectAccount = accounts.find((account) => account.needsReconnect);
@@ -182,6 +188,27 @@ export function CalendarView({
   const nextWeek = toIsoDate(addDays(weekStart, 7));
   const selectedDate = weekDates[selectedDay];
   const agendaPosts = postsForDay(selectedDay);
+  const composeHref = buildCalendarHref({
+    week: weekIso,
+    day: selectedDay,
+    accounts: accountsParam,
+    compose: true,
+  });
+  const closeHref = buildCalendarHref({
+    week: weekIso,
+    day: selectedDay,
+    accounts: accountsParam,
+  });
+  const threadsAccounts = accounts.filter((account) => account.platform === "threads");
+  const preselectedAccountIds = threadsAccounts
+    .filter(
+      (account) => selectedAccountIds === null || selectedAccountIds.includes(account.id),
+    )
+    .map((account) => account.id);
+  const defaultTime =
+    selectedDay === todayIndex && nowMinutes !== null
+      ? nextQuarterHour(nowMinutes)
+      : "09:00";
   const filterProps = {
     accounts,
     countsByAccount,
@@ -200,6 +227,9 @@ export function CalendarView({
           <span className="brand__page">Kalender</span>
         </div>
         <div className="topbar__actions">
+          <Link className="btn btn--primary btn--sm" href={composeHref}>
+            Post baru
+          </Link>
           <form action={logout} className="topbar__logout">
             <button
               type="submit"
@@ -452,6 +482,23 @@ export function CalendarView({
           <GridScroll top={nowLineTop} />
         </main>
       </div>
+
+      {compose ? (
+        <Composer
+          accounts={threadsAccounts}
+          preselectedAccountIds={preselectedAccountIds}
+          defaultDate={toIsoDate(selectedDate)}
+          defaultTime={defaultTime}
+          accountsParam={accountsParam}
+          closeHref={closeHref}
+        />
+      ) : null}
+
+      {saved ? (
+        <p className="toast" role="status">
+          Terjadwal
+        </p>
+      ) : null}
     </div>
   );
 }
