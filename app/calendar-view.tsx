@@ -12,14 +12,13 @@ import {
   toIsoDate,
   type CivilDate,
 } from "@/lib/calendar/week";
-import {
-  ACCOUNTS,
-  LEGEND_ORDER,
-  STATUS_LABELS,
-  type Platform,
-  type PostStatus,
-  type SamplePost,
-} from "@/lib/calendar/sample-data";
+import { LEGEND_ORDER, STATUS_LABELS } from "@/lib/calendar/status";
+import type {
+  CalendarAccount,
+  CalendarPost,
+  CalendarPostStatus,
+} from "@/lib/calendar/types";
+import type { Platform } from "@/lib/db/schema";
 
 import { logout } from "./actions";
 import { platformPaths } from "./platform-paths";
@@ -27,16 +26,14 @@ import { GridScroll } from "./scroll-to-now";
 
 type CalendarViewProps = {
   email: string;
+  accounts: CalendarAccount[];
   weekStart: CivilDate;
   weekDates: CivilDate[];
   todayIndex: number | null;
   nowMinutes: number | null;
-  posts: SamplePost[];
+  posts: CalendarPost[];
   selectedDay: number;
 };
-
-const accountsById = new Map(ACCOUNTS.map((account) => [account.id, account]));
-const reconnectAccount = ACCOUNTS.find((account) => account.needsReconnect);
 
 function initials(email: string): string {
   const [name = ""] = email.split("@");
@@ -67,11 +64,19 @@ function ReconnectMark() {
   );
 }
 
-function StatusShape({ status }: { status: PostStatus }) {
+function StatusShape({ status }: { status: CalendarPostStatus }) {
   return <span className={`shape shape--${status}`} aria-hidden="true" />;
 }
 
-function Targets({ targets, className }: { targets: string[]; className: string }) {
+function Targets({
+  targets,
+  className,
+  accountsById,
+}: {
+  targets: string[];
+  className: string;
+  accountsById: Map<string, CalendarAccount>;
+}) {
   return (
     <span className={className}>
       {targets.map((id) => {
@@ -92,7 +97,11 @@ function Targets({ targets, className }: { targets: string[]; className: string 
   );
 }
 
-function postLabel(post: SamplePost, date: CivilDate): string {
+function postLabel(
+  post: CalendarPost,
+  date: CivilDate,
+  accountsById: Map<string, CalendarAccount>,
+): string {
   const names = post.targets
     .map((id) => {
       const account = accountsById.get(id);
@@ -139,6 +148,7 @@ function NextIcon() {
 
 export function CalendarView({
   email,
+  accounts,
   weekStart,
   weekDates,
   todayIndex,
@@ -146,6 +156,9 @@ export function CalendarView({
   posts,
   selectedDay,
 }: CalendarViewProps) {
+  const accountsById = new Map(accounts.map((account) => [account.id, account]));
+  const reconnectAccount = accounts.find((account) => account.needsReconnect);
+
   const countFor = (accountId: string) =>
     posts.filter((post) => post.targets.includes(accountId)).length;
   const postsForDay = (day: number) =>
@@ -189,10 +202,10 @@ export function CalendarView({
         <aside className="rail" aria-label="Akun">
           <div className="rail__head">
             <h2>Akun</h2>
-            <span className="rail__count mono">{ACCOUNTS.length}</span>
+            <span className="rail__count mono">{accounts.length}</span>
           </div>
           <div className="rail__list">
-            {ACCOUNTS.map((account) => (
+            {accounts.map((account) => (
               <div key={account.id} className="acct">
                 <span className="acct__mark">
                   <PlatformMark platform={account.platform} />
@@ -221,7 +234,7 @@ export function CalendarView({
               <span>Semua</span>
               <span className="chip__n mono">{posts.length}</span>
             </span>
-            {ACCOUNTS.map((account) => (
+            {accounts.map((account) => (
               <span
                 key={account.id}
                 className="chip is-on"
@@ -238,12 +251,14 @@ export function CalendarView({
             ))}
           </div>
 
-          <div className="reconnect-strip">
-            <p>
-              <b>{reconnectAccount?.label ?? "TikTok"} perlu reconnect.</b> Post ke akun ini
-              tidak akan terbit sampai disambungkan.
-            </p>
-          </div>
+          {reconnectAccount ? (
+            <div className="reconnect-strip">
+              <p>
+                <b>{reconnectAccount.label} perlu reconnect.</b> Post ke akun ini tidak akan
+                terbit sampai disambungkan.
+              </p>
+            </div>
+          ) : null}
 
           <div className="toolbar">
             <div className="toolbar__left">
@@ -344,14 +359,18 @@ export function CalendarView({
                         key={post.id}
                         className={`block st--${post.status}`}
                         style={{ top: slotTop(post.time) + 2 }}
-                        aria-label={postLabel(post, date)}
+                        aria-label={postLabel(post, date, accountsById)}
                         title={post.error ? `${post.caption}\n${post.error}` : post.caption}
                       >
                         <span className="block__time mono">{post.time}</span>
                         <span className="block__sep" />
                         <span className="block__caption">{post.caption}</span>
                         <span className="block__meta">
-                          <Targets targets={post.targets} className="block__marks" />
+                          <Targets
+                            targets={post.targets}
+                            className="block__marks"
+                            accountsById={accountsById}
+                          />
                           <span className="block__status">
                             <StatusShape status={post.status} />
                           </span>
@@ -402,14 +421,18 @@ export function CalendarView({
                     <article
                       key={post.id}
                       className={`agenda-row st--${post.status}`}
-                      aria-label={postLabel(post, selectedDate)}
+                      aria-label={postLabel(post, selectedDate, accountsById)}
                     >
                       <span className="agenda-row__time mono">{post.time}</span>
                       <span className="agenda-row__sep" />
                       <span className="agenda-row__body">
                         <span className="agenda-row__caption">{post.caption}</span>
                         <span className="agenda-row__meta">
-                          <Targets targets={post.targets} className="agenda-row__marks" />
+                          <Targets
+                            targets={post.targets}
+                            className="agenda-row__marks"
+                            accountsById={accountsById}
+                          />
                           <span className="agenda-row__status">
                             <StatusShape status={post.status} />
                             {STATUS_LABELS[post.status]}

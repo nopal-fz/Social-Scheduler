@@ -1,6 +1,6 @@
 # Status
 
-Milestone: M0.4 — shell kalender minggu selesai dengan data contoh. Berikutnya query DB dan interaksi kalender.
+Milestone: M0.5 — kalender membaca post dari database. Berikutnya interaksi kalender (filter akun, drawer, drag).
 
 ## Done
 
@@ -30,12 +30,22 @@ Milestone: M0.4 — shell kalender minggu selesai dengan data contoh. Berikutnya
   - Screenshot 1440/1024/768/390: tanpa overflow, header hari sejajar dengan kolom, font termuat, console bersih.
   - 21 blok tidak keluar dari kolom; scroll awal mengikuti jam sekarang; navigasi minggu dan hari mobile bekerja.
   - `pnpm typecheck`, `pnpm lint`, `pnpm test` (25 test), `pnpm build` lolos.
+- M0.5: kalender membaca `posts`, `post_targets`, dan `social_accounts` dari Postgres.
+  - `getCalendarData` menjalankan dua query paralel per request: akun milik user, dan post dalam rentang minggu (join target). Tidak ada N+1 dan tidak ada kolom token yang dipilih.
+  - Rentang minggu dihitung dari Senin 00:00 sampai Senin berikutnya 00:00 `Asia/Jakarta`, dikonversi ke UTC (`jakartaWeekRangeUtc`). Waktu tampil tetap `Asia/Jakarta`.
+  - Status post diturunkan dari target dengan prioritas `failed > partial > publishing > scheduled > published`; status level post (`done`/`partial`/`failed`) dipakai saat post belum punya target. Mapper murni di `lib/calendar/status.ts`.
+  - `scripts/seed-posts.ts` membuat 4 akun placeholder dan 21 post uji untuk minggu berjalan. Idempotent: kalau minggu itu sudah punya post, seed dilewati. Token akun hanya placeholder `seed-placeholder-not-a-token`.
+  - `lib/calendar/sample-data.ts` dihapus; fixture pindah ke `scripts/seed-data.ts`.
+  - Empty state minggu kosong tetap: ringkasan "Belum ada post minggu ini." dan agenda "Belum ada post hari ini."
+  - Verifikasi M0.5 (`pnpm build` + `pnpm start`, sesi login owner):
+    - 21 blok tampil, 4 akun di rail/chip, agenda hari ini 3 post, legend 10 terjadwal / 1 sedang terbit / 7 terbit / 1 sebagian / 2 gagal.
+    - Screenshot 1440/1024/768/390: tanpa overflow horizontal, header hari sejajar kolom, font termuat, console bersih, fokus keyboard terlihat (outline 2px).
+    - `pnpm typecheck`, `pnpm lint`, `pnpm test` (29 test), `pnpm build` lolos.
 
-## Next: M0.5 / M1
+## Next: interaksi kalender / M1
 
-1. Ganti data contoh dengan query `posts` + `post_targets` dan seed post uji.
-2. Interaksi kalender: filter akun, drawer detail/composer, drag dengan jalur keyboard, tombol post baru.
-3. Setelah itu masuk M1: Threads end-to-end (teks dulu).
+1. Interaksi kalender: filter akun dulu. Drawer detail/composer, drag dengan jalur keyboard, dan tombol post baru jadi slice terpisah.
+2. Setelah itu masuk M1: Threads end-to-end (teks dulu). Tulis `docs/threads.md` dan selesaikan item `[VERIFY]` sebelum integrasi.
 
 ## Decisions
 
@@ -44,25 +54,29 @@ Milestone: M0.4 — shell kalender minggu selesai dengan data contoh. Berikutnya
 - Rate limit in-memory per proses; cukup untuk satu instance. Pindah ke Postgres bila app dijalankan lebih dari satu instance.
 - CSRF mengandalkan origin check bawaan Server Actions Next.js; tidak ada route handler mutation.
 - Kalender memakai query param untuk minggu/hari, bukan state client, supaya tetap server-rendered.
-- Sampel kalender statis sampai query post nyata ada; minggu lain sengaja kosong.
+- Kalender sekarang membaca database untuk semua minggu; minggu tanpa post menampilkan empty state.
+- Status blok diturunkan dari `post_targets` (prioritas desain), bukan dari `posts.status`; status post hanya fallback saat belum ada target.
+- Query kalender hanya memilih kolom yang dibutuhkan UI; token akun tidak pernah ikut ke halaman.
+- Seed post dev memakai akun placeholder dan idempotent per minggu; aman dijalankan ulang.
 - Postgres development lewat Docker Compose di port **5433** karena 5432 dipakai Postgres lokal.
 - Queue memakai pg-boss di database yang sama; tanpa Redis.
-- Waktu disimpan UTC; tampilan `Asia/Jakarta` nanti.
+- Waktu disimpan UTC; tampilan `Asia/Jakarta`.
 - Style tetap terkunci di `docs/design.md`.
 
 ## Files
 
 - Auth: `lib/auth/`, `app/login/`, `app/actions.ts`, `proxy.ts`.
 - Kalender: `app/page.tsx`, `app/calendar-view.tsx`, `app/calendar.css`, `app/scroll-to-now.tsx`, `lib/calendar/`.
+- Query + status: `lib/calendar/posts.ts`, `lib/calendar/status.ts`, `lib/calendar/types.ts`.
 - DB: `docker-compose.yml`, `drizzle.config.ts`, `drizzle/`, `lib/db/`.
 - Worker: `worker/index.ts`, `worker/ping.ts`.
-- Seed: `scripts/seed-owner.ts`.
+- Seed: `scripts/seed-owner.ts`, `scripts/seed-posts.ts`, `scripts/seed-data.ts`.
 - Env: `lib/env.ts`, `lib/env.test.ts`, `.env.example`.
 
 ## Commands
 
 `pnpm dev`, `pnpm build`, `pnpm start`, `pnpm lint`, `pnpm typecheck`, `pnpm test`,
-`pnpm db:generate`, `pnpm db:migrate`, `pnpm db:seed`, `pnpm worker`, `pnpm worker:ping`.
+`pnpm db:generate`, `pnpm db:migrate`, `pnpm db:seed`, `pnpm db:seed:posts`, `pnpm worker`, `pnpm worker:ping`.
 
 Urutan setup:
 
@@ -71,6 +85,7 @@ cp .env.example .env.local
 docker compose up -d
 pnpm db:migrate
 pnpm db:seed
+pnpm db:seed:posts
 pnpm dev
 ```
 

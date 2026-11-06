@@ -4,6 +4,8 @@ export const GRID_START_MINUTES = 6 * 60;
 export const GRID_END_MINUTES = 23 * 60;
 
 const DAY_MS = 86_400_000;
+// Asia/Jakarta is UTC+7 all year; no DST.
+const DISPLAY_OFFSET_MS = 7 * 60 * 60_000;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 const MONTHS_FULL = [
   "Januari",
@@ -60,6 +62,14 @@ export function getZonedNow(now: Date): { date: CivilDate; minutes: number } {
     date: { year: value("year"), month: value("month"), day: value("day") },
     minutes: value("hour") * 60 + value("minute"),
   };
+}
+
+export function jakartaToUtc(date: CivilDate, minutes = 0): Date {
+  return new Date(toUtcMs(date) + minutes * 60_000 - DISPLAY_OFFSET_MS);
+}
+
+export function jakartaWeekRangeUtc(weekStart: CivilDate): { start: Date; end: Date } {
+  return { start: jakartaToUtc(weekStart), end: jakartaToUtc(addDays(weekStart, 7)) };
 }
 
 export function startOfWeek(date: CivilDate): CivilDate {

@@ -7,6 +7,8 @@ import {
   formatWeekRange,
   getZonedNow,
   isGridTime,
+  jakartaToUtc,
+  jakartaWeekRangeUtc,
   nowTop,
   parseDateParam,
   slotTop,
@@ -88,5 +90,20 @@ describe("calendar week logic", () => {
 
   it("round-trips civil dates to ISO", () => {
     expect(toIsoDate({ year: 2026, month: 1, day: 5 })).toBe("2026-01-05");
+  });
+
+  it("converts Jakarta wall time to UTC", () => {
+    expect(jakartaToUtc({ year: 2026, month: 11, day: 5 }).toISOString()).toBe(
+      "2026-11-04T17:00:00.000Z",
+    );
+    expect(
+      jakartaToUtc({ year: 2026, month: 11, day: 5 }, 8 * 60 + 30).toISOString(),
+    ).toBe("2026-11-05T01:30:00.000Z");
+  });
+
+  it("covers a Jakarta week as a UTC range", () => {
+    const { start, end } = jakartaWeekRangeUtc({ year: 2026, month: 11, day: 2 });
+    expect(start.toISOString()).toBe("2026-11-01T17:00:00.000Z");
+    expect(end.toISOString()).toBe("2026-11-08T17:00:00.000Z");
   });
 });

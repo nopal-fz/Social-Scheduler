@@ -1,5 +1,5 @@
 import { requireUser } from "@/lib/auth/current-user";
-import { SAMPLE_POSTS } from "@/lib/calendar/sample-data";
+import { getCalendarData } from "@/lib/calendar/posts";
 import {
   addDays,
   dayIndex,
@@ -28,14 +28,17 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const requestedDay =
     typeof query.day === "string" && /^[0-6]$/.test(query.day) ? Number(query.day) : null;
 
+  const { accounts, posts } = await getCalendarData(user.id, weekStart);
+
   return (
     <CalendarView
       email={user.email}
+      accounts={accounts}
       weekStart={weekStart}
       weekDates={Array.from({ length: 7 }, (_, index) => addDays(weekStart, index))}
       todayIndex={todayIndex}
       nowMinutes={isCurrentWeek ? now.minutes : null}
-      posts={isCurrentWeek ? SAMPLE_POSTS : []}
+      posts={posts}
       selectedDay={requestedDay ?? todayIndex ?? 0}
     />
   );
