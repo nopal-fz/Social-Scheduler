@@ -1,6 +1,6 @@
 # Status
 
-Milestone: M0.5 — kalender membaca post dari database. Berikutnya interaksi kalender (filter akun, drawer, drag).
+Milestone: M0.5 interaksi — filter akun selesai. Berikutnya composer "Post baru".
 
 ## Done
 
@@ -41,11 +41,26 @@ Milestone: M0.5 — kalender membaca post dari database. Berikutnya interaksi ka
     - 21 blok tampil, 4 akun di rail/chip, agenda hari ini 3 post, legend 10 terjadwal / 1 sedang terbit / 7 terbit / 1 sebagian / 2 gagal.
     - Screenshot 1440/1024/768/390: tanpa overflow horizontal, header hari sejajar kolom, font termuat, console bersih, fokus keyboard terlihat (outline 2px).
     - `pnpm typecheck`, `pnpm lint`, `pnpm test` (29 test), `pnpm build` lolos.
+- M0.5 interaksi: filter akun kalender (`?accounts=<id>,<id>`).
+  - Filter server-rendered; URL adalah sumber kebenaran, konsisten dengan `?week`/`?day`. Tanpa param = semua akun; `?accounts=` = tidak ada akun dipilih. Id asing dibuang saat parsing; memilih semua akun dinormalisasi kembali ke tanpa param.
+  - Rail memakai checkbox native (`accent-color`, satu baris label per akun). Chip tablet/mobile memakai tombol toggle `aria-pressed` dengan garis bawah accent saat aktif. Chip "Semua" mengembalikan semua akun.
+  - Filter diterapkan ke blok grid, agenda mobile, hitungan hari, ringkasan, dan legend. Hitungan per akun di rail/chip tetap total post akun itu (multi-target dihitung di setiap akunya). Post tanpa target tersembunyi saat filter eksplisit per akun.
+  - Navigasi "Hari ini", minggu sebelumnya/berikutnya, dan hari mobile mempertahankan param filter.
+  - Empty state dibedakan: semua akun dimatikan = "Semua akun disembunyikan." + aksi "Tampilkan semua akun"; minggu kosong tetap "Belum ada post minggu ini." / "Belum ada post hari ini."
+  - Logika murni di `lib/calendar/filter.ts` + `filter.test.ts`; query database tidak diubah. `PlatformMark` dipindah ke `app/platform-mark.tsx` supaya dipakai komponen filter klien.
+  - Verifikasi sesi ini (`pnpm build` + `pnpm start`, sesi login owner, script CDP temp di folder temp, tidak di-commit):
+    - Screenshot 1440/1024/768/390 default: 21 blok, tanpa overflow horizontal, font termuat, console bersih.
+    - Matikan 1 akun: URL bertambah `accounts=<3 id>`, blok menyusut 14, rail tetap total per akun, legend/ringkasan/hitungan hari mengikuti yang terlihat.
+    - Maju minggu dengan filter aktif: `accounts` terbawa; "Hari ini" menghapus `week` tapi mempertahankan `accounts`.
+    - Matikan semua: ringkasan "Semua akun disembunyikan." + aksi "Tampilkan semua akun", legend hilang, agenda mobile memesan yang sama, klik aksi mengembalikan 21 blok.
+    - Fokus keyboard pada checkbox: ring 2px accent pada baris label; `accent-color` pada checkbox terverifikasi.
+    - `pnpm typecheck`, `pnpm lint`, `pnpm test` (43 test), `pnpm build` lolos.
 
 ## Next: interaksi kalender / M1
 
-1. Interaksi kalender: filter akun dulu. Drawer detail/composer, drag dengan jalur keyboard, dan tombol post baru jadi slice terpisah.
-2. Setelah itu masuk M1: Threads end-to-end (teks dulu). Tulis `docs/threads.md` dan selesaikan item `[VERIFY]` sebelum integrasi.
+1. Slice berikutnya: composer "Post baru" + simpan `posts`/`post_targets`. Setelah itu drawer detail + retry, lalu drag + jalur keyboard.
+2. Interaksi kalender lain (drawer, drag, tombol post baru) tetap slice terpisah.
+3. Setelah itu masuk M1: Threads end-to-end (teks dulu). Tulis `docs/threads.md` dan selesaikan item `[VERIFY]` sebelum integrasi.
 
 ## Decisions
 
@@ -53,13 +68,14 @@ Milestone: M0.5 — kalender membaca post dari database. Berikutnya interaksi ka
 - Auth memakai tabel `users`, scrypt, dan cookie bertanda tangan. Tanpa library auth baru.
 - Rate limit in-memory per proses; cukup untuk satu instance. Pindah ke Postgres bila app dijalankan lebih dari satu instance.
 - CSRF mengandalkan origin check bawaan Server Actions Next.js; tidak ada route handler mutation.
-- Kalender memakai query param untuk minggu/hari, bukan state client, supaya tetap server-rendered.
+- Kalender memakai query param untuk minggu/hari, bukan state client, supaya tetap server-rendered. Filter akun memakai pola yang sama (`?accounts=`); komponen filter klien hanya menulis param lewat router, keputusan tampil tetap server-rendered.
 - Kalender sekarang membaca database untuk semua minggu; minggu tanpa post menampilkan empty state.
 - Status blok diturunkan dari `post_targets` (prioritas desain), bukan dari `posts.status`; status post hanya fallback saat belum ada target.
 - Query kalender hanya memilih kolom yang dibutuhkan UI; token akun tidak pernah ikut ke halaman.
 - Seed post dev memakai akun placeholder dan idempotent per minggu; aman dijalankan ulang.
 - Postgres development lewat Docker Compose di port **5433** karena 5432 dipakai Postgres lokal.
 - Queue memakai pg-boss di database yang sama; tanpa Redis.
+- Filter akun memakai `?accounts=<id>,<id>`; tanpa param = semua akun, param kosong = tidak ada akun, id asing dibuang. Hitungan per akun tetap total (post multi-target dihitung di setiap akunya); summary/legend/hitungan hari memakai post yang terlihat; post tanpa target tersembunyi saat filter eksplisit.
 - Waktu disimpan UTC; tampilan `Asia/Jakarta`.
 - Style tetap terkunci di `docs/design.md`.
 
@@ -67,6 +83,7 @@ Milestone: M0.5 — kalender membaca post dari database. Berikutnya interaksi ka
 
 - Auth: `lib/auth/`, `app/login/`, `app/actions.ts`, `proxy.ts`.
 - Kalender: `app/page.tsx`, `app/calendar-view.tsx`, `app/calendar.css`, `app/scroll-to-now.tsx`, `lib/calendar/`.
+- Filter akun: `lib/calendar/filter.ts` + `filter.test.ts`; komponen klien toggle di `app/account-filter.tsx`; `app/platform-mark.tsx` (mark platform bersama).
 - Query + status: `lib/calendar/posts.ts`, `lib/calendar/status.ts`, `lib/calendar/types.ts`.
 - DB: `docker-compose.yml`, `drizzle.config.ts`, `drizzle/`, `lib/db/`.
 - Worker: `worker/index.ts`, `worker/ping.ts`.

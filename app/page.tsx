@@ -1,4 +1,10 @@
 import { requireUser } from "@/lib/auth/current-user";
+import {
+  countPostsByAccount,
+  filterPostsByAccounts,
+  parseAccountsParam,
+  serializeAccountsParam,
+} from "@/lib/calendar/filter";
 import { getCalendarData } from "@/lib/calendar/posts";
 import {
   addDays,
@@ -30,6 +36,23 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
   const { accounts, posts } = await getCalendarData(user.id, weekStart);
 
+  const allIds = accounts.map((account) => account.id);
+  const rawAccounts =
+    typeof query.accounts === "string" || Array.isArray(query.accounts)
+      ? query.accounts
+      : undefined;
+  const parsedSelection = parseAccountsParam(rawAccounts, allIds);
+  // `?accounts=<semua id>` dinormalisasi ke tanpa param (semua dipilih).
+  const selected =
+    parsedSelection !== null &&
+    serializeAccountsParam(parsedSelection, allIds) === null
+      ? null
+      : parsedSelection;
+  const accountsParam =
+    selected === null ? null : serializeAccountsParam(selected, allIds);
+
+  const visiblePosts = filterPostsByAccounts(posts, selected);
+
   return (
     <CalendarView
       email={user.email}
@@ -39,6 +62,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       todayIndex={todayIndex}
       nowMinutes={isCurrentWeek ? now.minutes : null}
       posts={posts}
+      visiblePosts={visiblePosts}
+      selectedAccountIds={selected === null ? null : [...selected]}
+      accountsParam={accountsParam}
+      countsByAccount={Object.fromEntries(countPostsByAccount(posts))}
       selectedDay={requestedDay ?? todayIndex ?? 0}
     />
   );

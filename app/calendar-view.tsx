@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { buildCalendarHref } from "@/lib/calendar/filter";
 import {
   DAYS,
   addDays,
@@ -18,10 +19,9 @@ import type {
   CalendarPost,
   CalendarPostStatus,
 } from "@/lib/calendar/types";
-import type { Platform } from "@/lib/db/schema";
-
+import { ChipFilter, RailFilterRows } from "./account-filter";
 import { logout } from "./actions";
-import { platformPaths } from "./platform-paths";
+import { PlatformMark } from "./platform-mark";
 import { GridScroll } from "./scroll-to-now";
 
 type CalendarViewProps = {
@@ -32,6 +32,10 @@ type CalendarViewProps = {
   todayIndex: number | null;
   nowMinutes: number | null;
   posts: CalendarPost[];
+  visiblePosts: CalendarPost[];
+  selectedAccountIds: string[] | null;
+  accountsParam: string | null;
+  countsByAccount: Record<string, number>;
   selectedDay: number;
 };
 
@@ -40,14 +44,6 @@ function initials(email: string): string {
   const parts = name.split(/[._-]+/).filter(Boolean);
   const letters = parts.length > 1 ? parts[0][0] + parts[1][0] : name.slice(0, 2);
   return letters.toUpperCase() || "?";
-}
-
-function PlatformMark({ platform }: { platform: Platform }) {
-  return (
-    <svg className="mark" viewBox="0 0 24 24" aria-hidden="true">
-      <path d={platformPaths[platform]} />
-    </svg>
-  );
 }
 
 function ReconnectMark() {
@@ -154,15 +150,27 @@ export function CalendarView({
   todayIndex,
   nowMinutes,
   posts,
+  visiblePosts,
+  selectedAccountIds,
+  accountsParam,
+  countsByAccount,
   selectedDay,
 }: CalendarViewProps) {
   const accountsById = new Map(accounts.map((account) => [account.id, account]));
   const reconnectAccount = accounts.find((account) => account.needsReconnect);
+  const weekIso = toIsoDate(weekStart);
+  const filterEmpty =
+    selectedAccountIds !== null &&
+    accounts.length > 0 &&
+    selectedAccountIds.length === 0;
+  const showAllHref = buildCalendarHref({
+    week: weekIso,
+    day: selectedDay,
+    accounts: null,
+  });
 
-  const countFor = (accountId: string) =>
-    posts.filter((post) => post.targets.includes(accountId)).length;
   const postsForDay = (day: number) =>
-    posts
+    visiblePosts
       .filter((post) => post.day === day)
       .sort((a, b) => a.time.localeCompare(b.time));
 
@@ -174,6 +182,13 @@ export function CalendarView({
   const nextWeek = toIsoDate(addDays(weekStart, 7));
   const selectedDate = weekDates[selectedDay];
   const agendaPosts = postsForDay(selectedDay);
+  const filterProps = {
+    accounts,
+    countsByAccount,
+    selectedAccountIds,
+    weekIso,
+    day: selectedDay,
+  };
 
   return (
     <div className="app">
@@ -205,18 +220,7 @@ export function CalendarView({
             <span className="rail__count mono">{accounts.length}</span>
           </div>
           <div className="rail__list">
-            {accounts.map((account) => (
-              <div key={account.id} className="acct">
-                <span className="acct__mark">
-                  <PlatformMark platform={account.platform} />
-                </span>
-                <span className="acct__handle">{account.handle}</span>
-                {account.needsReconnect ? (
-                  <span className="acct__warn" title="Perlu reconnect" />
-                ) : null}
-                <span className="acct__n mono">{countFor(account.id)}</span>
-              </div>
-            ))}
+            <RailFilterRows {...filterProps} />
             {reconnectAccount ? (
               <div className="acct-note">
                 <p>
@@ -230,25 +234,7 @@ export function CalendarView({
 
         <main className="content">
           <div className="accountbar" aria-label="Akun">
-            <span className="chip chip--all is-on">
-              <span>Semua</span>
-              <span className="chip__n mono">{posts.length}</span>
-            </span>
-            {accounts.map((account) => (
-              <span
-                key={account.id}
-                className="chip is-on"
-                title={`${account.label} ${account.handle}`}
-              >
-                <PlatformMark platform={account.platform} />
-                <span className="chip__handle">{account.handle}</span>
-                <span className="chip__short">{account.short}</span>
-                <span className="chip__n mono">{countFor(account.id)}</span>
-                {account.needsReconnect ? (
-                  <span className="acct__warn" title="Perlu reconnect" />
-                ) : null}
-              </span>
-            ))}
+            <ChipFilter {...filterProps} totalPosts={posts.length} />
           </div>
 
           {reconnectAccount ? (
@@ -262,20 +248,23 @@ export function CalendarView({
 
           <div className="toolbar">
             <div className="toolbar__left">
-              <Link className="btn btn--quiet btn--sm" href="/">
+              <Link
+                className="btn btn--quiet btn--sm"
+                href={buildCalendarHref({ accounts: accountsParam })}
+              >
                 Hari ini
               </Link>
               <div className="navgroup">
                 <Link
                   className="icon-btn"
-                  href={`/?week=${prevWeek}`}
+                  href={buildCalendarHref({ week: prevWeek, accounts: accountsParam })}
                   aria-label="Minggu sebelumnya"
                 >
                   <PreviousIcon />
                 </Link>
                 <Link
                   className="icon-btn"
-                  href={`/?week=${nextWeek}`}
+                  href={buildCalendarHref({ week: nextWeek, accounts: accountsParam })}
                   aria-label="Minggu berikutnya"
                 >
                   <NextIcon />
@@ -289,23 +278,28 @@ export function CalendarView({
           </div>
 
           <div className="subbar">
-            <p className="summary">
-              {posts.length > 0 ? (
-                <>
-                  <b>{posts.length}</b> post minggu ini
-                </>
-              ) : (
-                "Belum ada post minggu ini."
-              )}
-            </p>
-            {posts.length > 0 ? (
+            {filterEmpty ? (
+              <p className="summary summary--filter">
+                <b>Semua akun disembunyikan.</b>{" "}
+                <Link className="filter-link" href={showAllHref}>
+                  Tampilkan semua akun
+                </Link>
+              </p>
+            ) : visiblePosts.length > 0 ? (
+              <p className="summary">
+                <b>{visiblePosts.length}</b> post minggu ini
+              </p>
+            ) : (
+              <p className="summary">Belum ada post minggu ini.</p>
+            )}
+            {visiblePosts.length > 0 ? (
               <ul className="legend" aria-label="Status post">
                 {LEGEND_ORDER.map((status) => (
                   <li key={status}>
                     <StatusShape status={status} />
                     <span>{STATUS_LABELS[status]}</span>
                     <span className="n mono">
-                      {posts.filter((post) => post.status === status).length}
+                      {visiblePosts.filter((post) => post.status === status).length}
                     </span>
                   </li>
                 ))}
@@ -400,7 +394,7 @@ export function CalendarView({
                   className={`daychip${index === todayIndex ? " is-today" : ""}${
                     index === selectedDay ? " is-on" : ""
                   }`}
-                  href={`/?week=${toIsoDate(weekStart)}&day=${index}`}
+                  href={buildCalendarHref({ week: weekIso, day: index, accounts: accountsParam })}
                   aria-current={index === selectedDay ? "date" : undefined}
                 >
                   <span className="daychip__dow">{DAYS[index]}</span>
@@ -441,6 +435,13 @@ export function CalendarView({
                       </span>
                     </article>
                   ))
+                ) : filterEmpty ? (
+                  <p className="agenda-empty">
+                    <b>Semua akun disembunyikan.</b>{" "}
+                    <Link className="filter-link" href={showAllHref}>
+                      Tampilkan semua akun
+                    </Link>
+                  </p>
                 ) : (
                   <p className="agenda-empty">Belum ada post hari ini.</p>
                 )}
