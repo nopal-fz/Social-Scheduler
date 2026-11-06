@@ -1,6 +1,6 @@
 # Status
 
-Milestone: M0.5 interaksi — filter akun dan composer "Post baru" selesai. Berikutnya drawer detail.
+Milestone: M0.5 interaksi — filter akun, composer, dan detail post selesai. Berikutnya drag + ubah waktu.
 
 ## Done
 
@@ -70,11 +70,25 @@ Milestone: M0.5 interaksi — filter akun dan composer "Post baru" selesai. Beri
     - Esc menutup drawer dan menghapus `compose`; mobile 390 drawer selebar layar tanpa overflow; fokus keyboard Tab mendarat di caption dengan ring 2px accent; console bersih.
     - Data uji dihapus setelah verifikasi (21 post tersisa).
     - `pnpm typecheck`, `pnpm lint`, `pnpm test` (54 test), `pnpm build` lolos.
+- M0.5 interaksi: drawer detail post (`?post=<id>`).
+  - Blok grid dan baris agenda jadi tautan ke `?post=<id>`; drawer dibuka server-rendered seperti composer. Param `post` dibaca di `page.tsx`, post dicari dari data minggu yang sudah diambil (tanpa query baru), id asing diabaikan tanpa error.
+  - Isi: caption penuh, tanggal + jam `Asia/Jakarta`, akun target (mark platform, label + handle, penanda "Perlu reconnect"), status dengan bentuk + label, dan kotak "Error platform" berisi pesan error dari target yang gagal.
+  - Blok/baris yang sedang dibuka diberi ring 2px accent (`is-selected`). Tutup lewat tombol X, tombol "Tutup", atau Esc; `onClose` mengganti URL ke `closeHref` tanpa `post`.
+  - Kalau `compose` dan `post` ada bersamaan, composer yang menang supaya hanya satu dialog terbuka.
+  - Belum ada aksi di drawer: retry, ubah waktu, edit, hapus. Retry dan ubah waktu menunggu M1 (publisher) dan slice drag; tombol mati tidak dikirim.
+  - Verifikasi sesi ini (`pnpm build` + `pnpm start`, sesi login owner, script CDP temp di folder temp, tidak di-commit):
+    - 21 blok sekarang `<a>`; buka post gagal: dialog modal, `post` di URL, judul "Detail post", caption/jadwal/akun/status/error benar.
+    - Ring 2px accent pada blok terpilih; scroll grid tidak berubah saat drawer dibuka; tanpa overflow horizontal.
+    - Esc dan tombol Tutup menutup drawer serta menghapus param; id asing tidak membuka drawer; `compose=1&post=...` hanya membuka composer.
+    - Post multi-target menampilkan 3 akun + status "Sebagian" + error TikTok + penanda perlu reconnect.
+    - Keyboard: Tab sampai ke blok (ring 2px accent), Enter membuka detail. Mobile 390: drawer selebar layar, dibuka dari baris agenda, tanpa overflow.
+    - Screenshot 1440/1024/768/390; console bersih.
+    - `pnpm typecheck`, `pnpm lint`, `pnpm test` (55 test), `pnpm build` lolos.
 
 ## Next: interaksi kalender / M1
 
-1. Slice berikutnya: drawer detail post (baca caption, akun, waktu, status) + retry untuk post gagal. Retry baru bisa diuji setelah publisher M1 ada; kalau belum, tampilkan tombolnya nonaktif atau tunda slice retry.
-2. Setelah itu drag + jalur keyboard untuk memindah jadwal. Tombol retry dan drag tetap slice terpisah, bukan digabung ke composer.
+1. Slice berikutnya: drag blok + jalur keyboard untuk memindah jadwal (form waktu di drawer atau kontrol di blok). Ini butuh mutation jadwal + `revalidatePath`.
+2. Retry untuk post gagal ditunda sampai publisher M1 ada, karena mengubah status tanpa job hanya menipu UI.
 3. Setelah itu masuk M1: Threads end-to-end (teks dulu). Tulis `docs/threads.md` dan selesaikan item `[VERIFY]` sebelum integrasi.
 
 ## Decisions
@@ -96,6 +110,7 @@ Milestone: M0.5 interaksi — filter akun dan composer "Post baru" selesai. Beri
 - Simpan post belum membuat job publish; `createPost` hanya menulis DB dan menandai titik sambung pg-boss dengan komentar `shortcut:`.
 - Form composer dikendalikan state dan disubmit manual (`onSubmit` + `startTransition`) karena React 19 mereset form tak-terkontrol setelah server action.
 - Drawer memakai `<dialog>` native (`showModal`) untuk Esc, focus containment, dan backdrop tanpa JavaScript tambahan.
+- Detail post memakai `?post=<id>` dan hanya membaca data minggu yang sudah diambil; tidak ada query baru. Id asing diabaikan, dan `compose` menang bila kedua param ada.
 - Waktu disimpan UTC; tampilan `Asia/Jakarta`.
 - Style tetap terkunci di `docs/design.md`.
 
@@ -105,6 +120,7 @@ Milestone: M0.5 interaksi — filter akun dan composer "Post baru" selesai. Beri
 - Kalender: `app/page.tsx`, `app/calendar-view.tsx`, `app/calendar.css`, `app/scroll-to-now.tsx`, `lib/calendar/`.
 - Filter akun: `lib/calendar/filter.ts` + `filter.test.ts`; komponen klien toggle di `app/account-filter.tsx`; `app/platform-mark.tsx` (mark platform bersama).
 - Composer: `app/composer.tsx`, `app/actions.ts` (`createPost`), `lib/composer/schema.ts` + `schema.test.ts`, style drawer/toast/primary button di `app/calendar.css`.
+- Detail post: `app/post-detail.tsx`, `app/status-shape.tsx`, `?post=` di `lib/calendar/filter.ts`, style `.detail*` + `is-selected` di `app/calendar.css`.
 - Query + status: `lib/calendar/posts.ts`, `lib/calendar/status.ts`, `lib/calendar/types.ts`.
 - DB: `docker-compose.yml`, `drizzle.config.ts`, `drizzle/`, `lib/db/`.
 - Worker: `worker/index.ts`, `worker/ping.ts`.
@@ -134,7 +150,7 @@ pnpm dev
 - Jangan mengganti style di `docs/design.md`.
 - Jangan pakai port 5432 untuk container; itu Postgres lokal user.
 - Jangan menambah registrasi atau multi-user flow.
-- Jangan menganggap blok kalender sudah bisa diklik atau di-drag; interaksi itu belum dibuat.
+- Jangan menganggap blok kalender bisa di-drag, retry, atau diedit; yang ada baru drawer detail baca-saja.
 
 ## Handoff
 

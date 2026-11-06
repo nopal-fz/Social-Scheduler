@@ -136,4 +136,10 @@ describe("build calendar href", () => {
       "/?week=2026-11-02&day=3&saved=1",
     );
   });
+
+  it("adds the opened post id after the other params", () => {
+    expect(buildCalendarHref({ week: "2026-11-02", day: 3, post: "abc" })).toBe(
+      "/?week=2026-11-02&day=3&post=abc",
+    );
+  });
 });

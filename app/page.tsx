@@ -69,6 +69,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       selectedDay={requestedDay ?? todayIndex ?? 0}
       compose={query.compose === "1"}
       saved={query.saved === "1"}
+      postId={typeof query.post === "string" ? query.post : null}
     />
   );
 }

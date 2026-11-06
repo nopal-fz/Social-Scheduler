@@ -89,6 +89,7 @@ export type CalendarHrefOptions = {
   accounts?: string | null;
   compose?: boolean;
   saved?: boolean;
+  post?: string | null;
 };
 
 export function buildCalendarHref({
@@ -97,6 +98,7 @@ export function buildCalendarHref({
   accounts,
   compose,
   saved,
+  post,
 }: CalendarHrefOptions): string {
   const parts: string[] = [];
   if (week) {
@@ -115,6 +117,9 @@ export function buildCalendarHref({
   }
   if (saved) {
     parts.push("saved=1");
+  }
+  if (post) {
+    parts.push(`post=${encodeURIComponent(post)}`);
   }
   return parts.length > 0 ? `/?${parts.join("&")}` : "/";
 }

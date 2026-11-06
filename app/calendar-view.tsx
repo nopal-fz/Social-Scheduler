@@ -15,16 +15,14 @@ import {
   type CivilDate,
 } from "@/lib/calendar/week";
 import { LEGEND_ORDER, STATUS_LABELS } from "@/lib/calendar/status";
-import type {
-  CalendarAccount,
-  CalendarPost,
-  CalendarPostStatus,
-} from "@/lib/calendar/types";
+import type { CalendarAccount, CalendarPost } from "@/lib/calendar/types";
 import { ChipFilter, RailFilterRows } from "./account-filter";
 import { logout } from "./actions";
 import { Composer } from "./composer";
 import { PlatformMark } from "./platform-mark";
+import { PostDetail } from "./post-detail";
 import { GridScroll } from "./scroll-to-now";
+import { StatusShape } from "./status-shape";
 
 type CalendarViewProps = {
   email: string;
@@ -41,6 +39,7 @@ type CalendarViewProps = {
   selectedDay: number;
   compose: boolean;
   saved: boolean;
+  postId: string | null;
 };
 
 function initials(email: string): string {
@@ -62,10 +61,6 @@ function ReconnectMark() {
       />
     </svg>
   );
-}
-
-function StatusShape({ status }: { status: CalendarPostStatus }) {
-  return <span className={`shape shape--${status}`} aria-hidden="true" />;
 }
 
 function Targets({
@@ -161,6 +156,7 @@ export function CalendarView({
   selectedDay,
   compose,
   saved,
+  postId,
 }: CalendarViewProps) {
   const accountsById = new Map(accounts.map((account) => [account.id, account]));
   const reconnectAccount = accounts.find((account) => account.needsReconnect);
@@ -209,6 +205,14 @@ export function CalendarView({
     selectedDay === todayIndex && nowMinutes !== null
       ? nextQuarterHour(nowMinutes)
       : "09:00";
+  const detailPost = postId ? (posts.find((post) => post.id === postId) ?? null) : null;
+  const detailHref = (id: string, day: number) =>
+    buildCalendarHref({ week: weekIso, day, accounts: accountsParam, post: id });
+  const detailAccounts = detailPost
+    ? detailPost.targets
+        .map((id) => accountsById.get(id))
+        .filter((account): account is CalendarAccount => account !== undefined)
+    : [];
   const filterProps = {
     accounts,
     countsByAccount,
@@ -379,9 +383,13 @@ export function CalendarView({
                     className={`daycol${isToday ? " is-today" : ""}`}
                   >
                     {postsForDay(index).map((post) => (
-                      <article
+                      <Link
                         key={post.id}
-                        className={`block st--${post.status}`}
+                        href={detailHref(post.id, index)}
+                        scroll={false}
+                        className={`block st--${post.status}${
+                          detailPost?.id === post.id ? " is-selected" : ""
+                        }`}
                         style={{ top: slotTop(post.time) + 2 }}
                         aria-label={postLabel(post, date, accountsById)}
                         title={post.error ? `${post.caption}\n${post.error}` : post.caption}
@@ -399,7 +407,7 @@ export function CalendarView({
                             <StatusShape status={post.status} />
                           </span>
                         </span>
-                      </article>
+                      </Link>
                     ))}
                     {isToday && nowLineTop !== null ? (
                       <span className="nowdot" style={{ top: nowLineTop }} />
@@ -442,9 +450,13 @@ export function CalendarView({
               <div className="agenda__list">
                 {agendaPosts.length > 0 ? (
                   agendaPosts.map((post) => (
-                    <article
+                    <Link
                       key={post.id}
-                      className={`agenda-row st--${post.status}`}
+                      href={detailHref(post.id, selectedDay)}
+                      scroll={false}
+                      className={`agenda-row st--${post.status}${
+                        detailPost?.id === post.id ? " is-selected" : ""
+                      }`}
                       aria-label={postLabel(post, selectedDate, accountsById)}
                     >
                       <span className="agenda-row__time mono">{post.time}</span>
@@ -463,7 +475,7 @@ export function CalendarView({
                           </span>
                         </span>
                       </span>
-                    </article>
+                    </Link>
                   ))
                 ) : filterEmpty ? (
                   <p className="agenda-empty">
@@ -490,6 +502,16 @@ export function CalendarView({
           defaultDate={toIsoDate(selectedDate)}
           defaultTime={defaultTime}
           accountsParam={accountsParam}
+          closeHref={closeHref}
+        />
+      ) : detailPost ? (
+        <PostDetail
+          caption={detailPost.caption}
+          dateLabel={formatAgendaDate(weekDates[detailPost.day])}
+          time={detailPost.time}
+          status={detailPost.status}
+          accounts={detailAccounts}
+          error={detailPost.error}
           closeHref={closeHref}
         />
       ) : null}
