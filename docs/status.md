@@ -1,6 +1,6 @@
 # Status
 
-Milestone: M0.5 interaksi — filter akun, composer, dan detail post selesai. Berikutnya drag + ubah waktu.
+Milestone: M1a fondasi Threads selesai (docs, enkripsi token, interface platform). Berikutnya M1b OAuth connect.
 
 ## Done
 
@@ -84,12 +84,19 @@ Milestone: M0.5 interaksi — filter akun, composer, dan detail post selesai. Be
     - Keyboard: Tab sampai ke blok (ring 2px accent), Enter membuka detail. Mobile 390: drawer selebar layar, dibuka dari baris agenda, tanpa overflow.
     - Screenshot 1440/1024/768/390; console bersih.
     - `pnpm typecheck`, `pnpm lint`, `pnpm test` (55 test), `pnpm build` lolos.
+- M1a: fondasi integrasi Threads.
+  - `docs/threads.md` merangkum docs resmi (6 Nov 2026): setup app + Threads Tester, scope, authorize/exchange/long-lived/refresh, publish teks dua langkah, batas 500 karakter (emoji UTF-8 byte), 250 post API/24 jam, `threads_publishing_limit`, rate limit call, dan bentuk error. Item `[VERIFY]` Threads di `PRD.md` diselesaikan.
+  - `lib/crypto/token.ts`: AES-256-GCM, IV acak 12 byte, format `v1.<iv>.<tag>.<ciphertext>` base64url, `parseEncryptionKey` (32 byte base64). Test: roundtrip, IV unik, key salah, ciphertext diubah, payload rusak, key salah panjang.
+  - `TOKEN_ENCRYPTION_KEY` wajib di env (base64 32 byte); `.env.example` berisi placeholder + cara generate. Nilai asli hanya di `.env.local`.
+  - `lib/platforms/types.ts`: kontrak `PlatformAdapter` (`connect`, `refreshToken`, `publish`, `fetchComments`, `replyToComment`, `fetchMetrics`) + `capabilities`. Belum ada implementasi; adapter Threads menyusul di M1b/M1c.
+  - Verifikasi: `pnpm typecheck`, `pnpm lint`, `pnpm test` (62 test), `pnpm build` lolos. Tidak ada perubahan UI.
 
-## Next: interaksi kalender / M1
+## Next: M1b OAuth connect Threads
 
-1. Slice berikutnya: drag blok + jalur keyboard untuk memindah jadwal (form waktu di drawer atau kontrol di blok). Ini butuh mutation jadwal + `revalidatePath`.
-2. Retry untuk post gagal ditunda sampai publisher M1 ada, karena mengubah status tanpa job hanya menipu UI.
-3. Setelah itu masuk M1: Threads end-to-end (teks dulu). Tulis `docs/threads.md` dan selesaikan item `[VERIFY]` sebelum integrasi.
+1. Riset di `docs/threads.md` sudah selesai; pakai itu, jangan mengarang endpoint.
+2. M1b: route authorize + callback, verifikasi `state`, tukar code → long-lived token, ambil profil, simpan token terenkripsi + `expires_at` + `external_user_id` ke `social_accounts`. Butuh **Threads App ID/secret**, redirect URI yang terdaftar, dan akun sebagai Threads Tester.
+3. M1c: sambungkan pg-boss, worker publish teks (container → publish, simpan `creation_id` sebelum publish), update status per target, cek kuota 250/24 jam, klasifikasi error retry vs permanen. Setelah itu retry manual di drawer.
+4. Drag + ubah waktu tetap slice terpisah; tidak mendesak selama publish belum ada.
 
 ## Decisions
 
@@ -106,11 +113,14 @@ Milestone: M0.5 interaksi — filter akun, composer, dan detail post selesai. Be
 - Queue memakai pg-boss di database yang sama; tanpa Redis.
 - Filter akun memakai `?accounts=<id>,<id>`; tanpa param = semua akun, param kosong = tidak ada akun, id asing dibuang. Hitungan per akun tetap total (post multi-target dihitung di setiap akunya); summary/legend/hitungan hari memakai post yang terlihat; post tanpa target tersembunyi saat filter eksplisit.
 - Composer dibuka lewat `?compose=1` dan hasil simpan lewat `?saved=1`, bukan state client, supaya pola URL tetap sama dengan navigasi kalender.
-- Composer sementara hanya untuk akun Threads dan konten teks. Instagram/TikTok menunggu media upload (M2/M3); batas caption tunggal 500 (`TODO(verify)`), difinalkan di `docs/threads.md` saat M1.
+- Composer sementara hanya untuk akun Threads dan konten teks. Instagram/TikTok menunggu media upload (M2/M3); batas caption 500 karakter terverifikasi di `docs/threads.md`; hitung UTF-8 byte untuk emoji dilakukan di validator publish (M1c).
 - Simpan post belum membuat job publish; `createPost` hanya menulis DB dan menandai titik sambung pg-boss dengan komentar `shortcut:`.
 - Form composer dikendalikan state dan disubmit manual (`onSubmit` + `startTransition`) karena React 19 mereset form tak-terkontrol setelah server action.
 - Drawer memakai `<dialog>` native (`showModal`) untuk Esc, focus containment, dan backdrop tanpa JavaScript tambahan.
 - Detail post memakai `?post=<id>` dan hanya membaca data minggu yang sudah diambil; tidak ada query baru. Id asing diabaikan, dan `compose` menang bila kedua param ada.
+- Token OAuth disimpan terenkripsi AES-256-GCM dengan `TOKEN_ENCRYPTION_KEY` (32 byte base64, wajib). Format payload ber-versi (`v1`) supaya rotasi format bisa dilakukan tanpa migrasi buta.
+- Kontrak platform didefinisikan sebagai type-only sampai adapter pertama ada; kemampuan yang tidak didukung dinyatakan lewat `capabilities`, bukan error.
+- Threads self-use memakai role Threads Tester (tanpa App Review); app published hanya perlu untuk akun di luar role.
 - Waktu disimpan UTC; tampilan `Asia/Jakarta`.
 - Style tetap terkunci di `docs/design.md`.
 
@@ -121,6 +131,7 @@ Milestone: M0.5 interaksi — filter akun, composer, dan detail post selesai. Be
 - Filter akun: `lib/calendar/filter.ts` + `filter.test.ts`; komponen klien toggle di `app/account-filter.tsx`; `app/platform-mark.tsx` (mark platform bersama).
 - Composer: `app/composer.tsx`, `app/actions.ts` (`createPost`), `lib/composer/schema.ts` + `schema.test.ts`, style drawer/toast/primary button di `app/calendar.css`.
 - Detail post: `app/post-detail.tsx`, `app/status-shape.tsx`, `?post=` di `lib/calendar/filter.ts`, style `.detail*` + `is-selected` di `app/calendar.css`.
+- Threads: `docs/threads.md`, `lib/platforms/types.ts`, `lib/crypto/token.ts` + `token.test.ts`.
 - Query + status: `lib/calendar/posts.ts`, `lib/calendar/status.ts`, `lib/calendar/types.ts`.
 - DB: `docker-compose.yml`, `drizzle.config.ts`, `drizzle/`, `lib/db/`.
 - Worker: `worker/index.ts`, `worker/ping.ts`.
@@ -136,6 +147,7 @@ Urutan setup:
 
 ```bash
 cp .env.example .env.local
+# isi TOKEN_ENCRYPTION_KEY: openssl rand -base64 32 (atau generator acak lain)
 docker compose up -d
 pnpm db:migrate
 pnpm db:seed
@@ -145,11 +157,14 @@ pnpm dev
 
 ## Do not
 
-- Jangan commit `.env`, token, password, atau hash asli.
+- Jangan commit `.env`, token, password, `TOKEN_ENCRYPTION_KEY`, atau hash asli.
+- Jangan menaruh token OAuth di log, response, props klien, atau fixture test.
 - Jangan force push.
 - Jangan mengganti style di `docs/design.md`.
 - Jangan pakai port 5432 untuk container; itu Postgres lokal user.
 - Jangan menambah registrasi atau multi-user flow.
+- Jangan menganggap blok kalender bisa di-drag, retry, atau diedit; yang ada baru drawer detail baca-saja.
+- Jangan menambah endpoint Threads tanpa mencatatnya di `docs/threads.md` lebih dulu.
 - Jangan menganggap blok kalender bisa di-drag, retry, atau diedit; yang ada baru drawer detail baca-saja.
 
 ## Handoff

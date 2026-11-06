@@ -73,12 +73,14 @@ Hasil riset awal. **Wajib diverifikasi ulang ke docs resmi sebelum mulai tiap in
 | Akun wajib | Threads account | Business/Creator | Akun TikTok biasa |
 | Media dari | URL publik | URL publik | Upload chunk atau pull dari domain terverifikasi |
 
+**Threads terverifikasi 6 Nov 2026** (`docs/threads.md`): publish teks didukung lewat container 2 langkah, batas 500 karakter (emoji dihitung UTF-8 byte), 250 post API per 24 jam per profil, token long-lived 60 hari bisa di-refresh, scope `threads_basic` + `threads_content_publish`.
+
 Implikasi desain:
 
 - **Threads & Instagram** mengambil media dari **URL publik**, jadi butuh object storage (Cloudflare R2 atau S3-compatible) dengan URL yang bisa diakses platform.
 - Flow publish keduanya dua langkah: buat *container* lalu *publish*. Simpan `creation_id` supaya retry tidak bikin post dobel.
 - **TikTok Content Posting API**: aplikasi yang belum lolos audit biasanya hanya bisa posting dengan visibilitas private `[VERIFY]`. Untuk pemakaian pribadi, mode "kirim ke draft/inbox TikTok" mungkin cukup. Putuskan setelah baca docs.
-- **App review Meta**: kalau cuma dipakai akun sendiri, mode development dengan role tester biasanya cukup tanpa review `[VERIFY]`. Ini yang bikin self-use jauh lebih gampang.
+- **App review Meta**: **terverifikasi 6 Nov 2026** — role Threads Tester cukup untuk akun sendiri tanpa App Review; app hanya perlu published untuk akun di luar role. Detail di `docs/threads.md`.
 - Tiap platform punya rate limit harian untuk publish. Worker wajib menghitung dan menolak dengan pesan jelas kalau melebihi.
 
 ## 6. Arsitektur

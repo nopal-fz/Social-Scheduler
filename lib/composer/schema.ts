@@ -10,7 +10,8 @@ import {
   toIsoDate,
 } from "../calendar/week";
 
-// TODO(verify): Threads text limit, dikonfirmasi ke docs resmi di docs/threads.md saat M1.
+// Batas post teks Threads: 500 karakter, emoji dihitung UTF-8 byte oleh API.
+// TODO(verify): hitung byte saat publish (M1c); composer masih menghitung length JS.
 export const CAPTION_LIMIT = 500;
 
 const fieldsSchema = z.object({
